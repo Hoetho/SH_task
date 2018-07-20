@@ -17,5 +17,5 @@
     authorized_key: 
       user: jan
       state: present
-      key: "{{ lookup('file', './files/jan_key.pub') }}"
-      #key: https://github.com/Hoetho/SH_task/jan_key.pub
+      #key: "{{ lookup('file', './files/jan_key.pub') }}"
+      key: https://raw.githubusercontent.com/Hoetho/SH_task/master/files/jan_key.pub

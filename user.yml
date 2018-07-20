@@ -1,0 +1,21 @@
+---
+- hosts: sht
+  tasks:
+  - name: Test User Group
+    group:
+      name: testgroup
+      state: present
+
+  - name: Add User Jan
+    user:
+     name: jan
+     group: testgroup
+     groups: sudo
+     shell: /bin/bash
+
+  - name: SSH Key
+    authorized_key: 
+      user: jan
+      state: present
+      key: "{{ lookup('file', './files/jan_key.pub') }}"
+      #key: https://github.com/Hoetho/SH_task/jan_key.pub

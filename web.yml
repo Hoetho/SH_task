@@ -1,0 +1,74 @@
+---
+- hosts: all
+ 
+  tasks:
+  - name: Nginx-Repo
+    apt_repository: repo='ppa:nginx/stable' state=present
+    register: repostable
+
+  - name: Nginx-Install
+    apt: pkg=nginx state=installed update_cache=true
+    when: repostable is success
+    register: nginxinstall
+    notify:
+     - Start-Nginx
+
+  - name: Enable Auto startup
+    service:
+      name: nginx
+      enabled: yes
+
+  - name: Add Nginx Config
+    when: nginxinstall is success
+    template: src=/etc/ansible/template/nginx.conf.j2 dest=/etc/nginx/nginx.conf owner=root group=root
+    notify:
+     - Restart-Nginx
+
+  - name: Add Site Config
+    when: nginxinstall is success
+    template: src=/etc/ansible/template/vhost.j2 dest=/etc/nginx/sites-available/sunhill-task.org.conf owner=root group=root
+    register: siteconfig
+
+  - name: Add Site link
+    when: nginxinstall is success
+    file: src=/etc/nginx/sites-available/sunhill-task.org.conf dest=/etc/nginx/sites-enabled/sunhill-task.org.conf state=link
+
+  - name: Create wwwroot
+    when: nginxinstall is success
+    file: dest=/var/www/sunhill-task.org/public mode=775 state=directory owner=www-data group=www-data
+    notify:
+     - Reload-Nginx
+
+  - name: Copy ssl.crt
+    when: nginxinstall is success
+    copy: src=/etc/ansible/files/ssl.crt dest=/etc/nginx/ssl.crt owner=www-data group=www-data mode=0644
+
+  - name: Copy ssl_crt.key
+    when: nginxinstall is success
+    copy: src=/etc/ansible/files/ssl_crt.key dest=/etc/nginx/ssl_crt.key owner=www-data group=www-data mode=0644
+
+  - name: Web Root Permissions
+    when: nginxinstall|success
+    file: dest=/var/www/sunhill-task.org/public mode=775 state=directory owner=www-data group=www-data recurse=yes
+    notify:
+     - Reload-Nginx
+
+  - name: Copy Index.html
+    when: siteconfig|success
+    copy: src=/etc/ansible/files/index.html dest=/var/www/sunhill-task.org/public/index.html owner=www-data group=www-data mode=0644
+
+  - name: Disable Default Site
+    when: nginxinstall|success
+    file: dest=/etc/nginx/sites-enabled/default state=absent
+    notify:
+     - Reload-Nginx
+
+  handlers:
+   - name: Start-Nginx
+     service: name=nginx state=started
+
+   - name: Reload-Nginx
+     service: name=nginx state=reloaded
+
+   - name: Restart-Nginx
+     service: name=nginx state=restarted
